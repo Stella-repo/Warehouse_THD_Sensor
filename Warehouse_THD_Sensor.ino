@@ -1,6 +1,17 @@
 int count = 0;
 long mil = 0;
 
+
+//릴레이
+#include <NTPClient.h>
+#include <WiFiUdp.h>
+int stop = 50, start = 60;
+int setstatus = 0;
+int Relaypin = 16;
+int dehumi = 0;
+//릴레이
+
+
 //디스플레이
 #include <SPI.h>
 #include <Wire.h>
@@ -79,7 +90,35 @@ void handleNewMessages(int numNewMessages) {
       String from_name = bot.messages[i].from_name;
       
       if (text == "/status") {
-        bot.sendMessage(chat_id, "기온 : " + String(temp_avg) + "  습도 : " + String(humi_avg) + "  먼지 : " + String(voMeasured_avg));
+        bot.sendMessage(chat_id, "기온 : " + String(temp_avg) + "  습도 : " + String(humi_avg) + "  먼지 : " + String(voMeasured_avg) + "\n정지습도 : " + stop + "  동작습도 : " + start);
+      }
+
+      else if (text == "/set") { //얘가 위에 있으면 setstatus = 1상태로 내려가서 오작동함
+        bot.sendMessage(chat_id, "설정할 습도를 <정지습도-동작습도>로 적어주세요.\n설정을 취소하려면 /cancel 이라고 보내주세요 ");
+        setstatus = 1;
+      }
+      else {
+        if (setstatus == 1) {
+          if (text == "/cancel") {
+            setstatus = 0;
+            bot.sendMessage(chat_id, "동작습도 설정이 취소되었습니다.");
+          }
+          else {
+            stop = (text.substring(0, 2)).toInt();
+            start = (text.substring(3, 5)).toInt();
+            Serial.println(stop, start);
+            bot.sendMessage(chat_id, "설정완료!\n정지습도 : " + String(stop) + "  동작습도 : " + String(start));
+            setstatus = 0;
+          }
+        }
+      }
+
+
+
+      if (text.substring(0,3) == "set") {
+        stop = (text.substring(4, 6)).toInt();
+        start = (text.substring(7, 9)).toInt();  
+        bot.sendMessage(chat_id, "설정완료!\n정지습도 : " + String(stop) + "  동작습도 : " + String(start));
       }
     }
   }
@@ -87,10 +126,23 @@ void handleNewMessages(int numNewMessages) {
 //텔레그램
 
 
+//NTP서버 시간
+WiFiUDP udp;
+NTPClient timeClient(udp, "kr.pool.ntp.org", 32400);
+int status = 1;
+//NTP서버 시간
+
+
+
 
 void setup() {
   client.setInsecure();  
   Serial.begin(9600);
+
+  //릴레이
+  pinMode(Relaypin,OUTPUT);
+  digitalWrite(Relaypin, HIGH);
+  //릴레이
 
   //디스플레이
   // SSD1306_SWITCHCAPVCC = 내부 3.3V 차지 펌프 회로를 켜둔다.
@@ -132,6 +184,11 @@ void setup() {
   Serial.println(WiFi.localIP());
   //텔레그램
   
+  //NTP서버 시간
+  timeClient.begin();
+  timeClient.update();
+  Serial.println(timeClient.getFormattedTime());
+  //NTP서버 시간
 }
  
 void loop() {
@@ -169,7 +226,6 @@ void loop() {
 
   for (int i = 0; i < 10; i++)
   {
-    //if (voMeasured
     voMeasured_log[i] = voMeasured_log[i+1];
   }
   voMeasured_log[9] = voMeasured;
@@ -224,11 +280,30 @@ void loop() {
     display.setTextColor(WHITE);
     display.setTextSize(2);
     display.setCursor(0,0);
-    display.println("humi " + String(humi) + "\ntemp " + String(temp));
+    display.println("temp " + String(temp) + "\nhumi " + String(humi));
     display.println("dust " + String(voMeasured));
     display.println(humi_status + " " + temp_status + " " + voMeasured_status);
     display.display();
     //디스플레이
+
+    //릴레이
+    if (dehumi == 1) {
+      if (humi <= float(stop)) {
+        digitalWrite(Relaypin, HIGH);
+        dehumi = 0;
+        bot.sendMessage("1698174738", "제습기 작동 정지");
+        Serial.println("제습기 작동 정지");
+      }
+    }
+    if (dehumi == 0) {
+      if (humi >= float(start)) {
+        digitalWrite(Relaypin, LOW);
+        dehumi = 1;
+        bot.sendMessage("1698174738", "제습기 작동 시작");
+        Serial.println("제습기 작동 시작");
+      }
+    }
+    //릴레이
    }
 
   else {
@@ -245,10 +320,21 @@ void loop() {
     //디스플레이
   }
 
-  if (millis() - mil > 3600000) {
-    mil = millis();
-    bot.sendMessage("1698174738", "기온 : " + String(temp_avg) + "  습도 : " + String(humi_avg) + "  먼지 : " + String(voMeasured_avg));
+
+  //1시간마다 현재상태 전송
+  if (status == 1) { //상태가 1이고 00분이 되면 전송하고 시간 받아오고 상태를 0으로 바꾸기
+    if (String(timeClient.getFormattedTime()).substring(3, 5) == "00") {
+      bot.sendMessage("1698174738", "기온 : " + String(temp_avg) + "  습도 : " + String(humi_avg) + "  먼지 : " + String(voMeasured_avg));
+      timeClient.update();
+      status = 0;
+    }
   }
+  if (status == 0) { //상태가 0일때(한번 전송했을때) 01분이 되면 상태 1로 바꾸기
+    if (String(timeClient.getFormattedTime()).substring(3, 5) == "01") {
+      status = 1;
+    }
+  }
+  //1시간마다 현재상태 전송
      
   Serial.println("humidity : " + String(humi) + " - temperature : " + String(temp));
   Serial.println("Raw Signal Value (0-1023) : " + String(voMeasured));  

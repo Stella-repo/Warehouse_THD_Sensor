@@ -5,7 +5,7 @@ long mil = 0;
 //릴레이
 #include <NTPClient.h>
 #include <WiFiUdp.h>
-int stop = 50, start = 60;
+int stop = 50, start = 55;
 int setstatus = 0;
 int Relaypin = 16;
 int dehumi = 0;
@@ -67,6 +67,7 @@ String voMeasured_status;
 char ssid[] = "KT_GiGA_7C21";     // your network SSID (name)
 char password[] = "a1gf25ke54"; // your network key
 String mychatid = "1698174738";
+int senddata = 0;
 
 // Initialize Telegram BOT
 #define BOTtoken "5377698937:AAF8Yml90Xt0PdiXlZauRxDYAiyhp_FR0iA"  // your Bot Token (Get from Botfather)
@@ -90,11 +91,11 @@ void handleNewMessages(int numNewMessages) {
       String from_name = bot.messages[i].from_name;
       
       if (text == "/status") {
-        bot.sendMessage(chat_id, "기온 : " + String(temp_avg) + "  습도 : " + String(humi_avg) + "  먼지 : " + String(voMeasured_avg) + "\n정지습도 : " + stop + "  동작습도 : " + start);
+        bot.sendMessage(chat_id, "기온 : " + String(temp_avg) + "  습도 : " + String(humi_avg) + "  먼지 : " + String(voMeasured_avg) + "\n정지습도 : " + stop + "  동작습도 : " + start + "수신상태 : " + senddata);
       }
 
       else if (text == "/set") { //얘가 위에 있으면 setstatus = 1상태로 내려가서 오작동함
-        bot.sendMessage(chat_id, "설정할 습도를 <정지습도-동작습도>로 적어주세요.\n설정을 취소하려면 /cancel 이라고 보내주세요 ");
+        bot.sendMessage(chat_id, "설정할 습도를 <정지습도-동작습도>로 적어주세요.\n상태정보 수신을 설정하려면 /on /off 를 보내주세요.\n설정을 취소하려면 /cancel 이라고 보내주세요.");
         setstatus = 1;
       }
       else {
@@ -102,6 +103,14 @@ void handleNewMessages(int numNewMessages) {
           if (text == "/cancel") {
             setstatus = 0;
             bot.sendMessage(chat_id, "동작습도 설정이 취소되었습니다.");
+          }
+          if (text == "/on") {
+            senddata = 1;
+            bot.sendMessage(chat_id, "상태정보를 수신을 켭니다.");            
+          }
+          if (text == "/off") {
+            senddata = 0;
+            bot.sendMessage(chat_id, "상태정보를 수신을 끕니다.");            
           }
           else {
             stop = (text.substring(0, 2)).toInt();
@@ -291,7 +300,9 @@ void loop() {
       if (humi <= float(stop)) {
         digitalWrite(Relaypin, HIGH);
         dehumi = 0;
-        bot.sendMessage("1698174738", "제습기 작동 정지");
+        if (senddata == 1) {
+          bot.sendMessage("1698174738", "제습기 작동 정지");
+        }
         Serial.println("제습기 작동 정지");
       }
     }
@@ -299,7 +310,9 @@ void loop() {
       if (humi >= float(start)) {
         digitalWrite(Relaypin, LOW);
         dehumi = 1;
-        bot.sendMessage("1698174738", "제습기 작동 시작");
+        if (senddata == 1) {
+          bot.sendMessage("1698174738", "제습기 작동 시작");
+        }
         Serial.println("제습기 작동 시작");
       }
     }
@@ -324,7 +337,9 @@ void loop() {
   //1시간마다 현재상태 전송
   if (status == 1) { //상태가 1이고 00분이 되면 전송하고 시간 받아오고 상태를 0으로 바꾸기
     if (String(timeClient.getFormattedTime()).substring(3, 5) == "00") {
-      bot.sendMessage("1698174738", "기온 : " + String(temp_avg) + "  습도 : " + String(humi_avg) + "  먼지 : " + String(voMeasured_avg));
+      if (senddata == 1) {
+        bot.sendMessage("1698174738", "기온 : " + String(temp_avg) + "  습도 : " + String(humi_avg) + "  먼지 : " + String(voMeasured_avg));
+      }
       timeClient.update();
       status = 0;
     }

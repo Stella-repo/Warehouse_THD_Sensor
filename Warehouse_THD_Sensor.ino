@@ -91,7 +91,7 @@ void handleNewMessages(int numNewMessages) {
       String from_name = bot.messages[i].from_name;
       
       if (text == "/status") {
-        bot.sendMessage(chat_id, "기온 : " + String(temp_avg) + "  습도 : " + String(humi_avg) + "  먼지 : " + String(voMeasured_avg) + "\n정지습도 : " + stop + "  동작습도 : " + start + "수신상태 : " + senddata);
+        bot.sendMessage(chat_id, "기온 : " + String(temp_avg) + "  습도 : " + String(humi_avg) + "  먼지 : " + String(voMeasured_avg) + "\n정지습도 : " + stop + "  동작습도 : " + start + "\n수신상태 : " + senddata + "  제습기동작상태 : " + dehumi);
       }
 
       else if (text == "/set") { //얘가 위에 있으면 setstatus = 1상태로 내려가서 오작동함
@@ -104,11 +104,11 @@ void handleNewMessages(int numNewMessages) {
             setstatus = 0;
             bot.sendMessage(chat_id, "동작습도 설정이 취소되었습니다.");
           }
-          if (text == "/on") {
+          else if (text == "/on") {
             senddata = 1;
             bot.sendMessage(chat_id, "상태정보를 수신을 켭니다.");            
           }
-          if (text == "/off") {
+          else if (text == "/off") {
             senddata = 0;
             bot.sendMessage(chat_id, "상태정보를 수신을 끕니다.");            
           }

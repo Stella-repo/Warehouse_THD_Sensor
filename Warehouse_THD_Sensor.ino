@@ -64,13 +64,13 @@ String voMeasured_status;
 #include <UniversalTelegramBot.h>
 
 // Initialize Wifi connection to the router
-char ssid[] = "KT_GiGA_7C21";     // your network SSID (name)
-char password[] = "a1gf25ke54"; // your network key
-String mychatid = "1698174738";
+char ssid[] = "your network SSID (name)";     // your network SSID (name)
+char password[] = "your network key"; // your network key
+String mychatid = "mychatid";
 int senddata = 0;
 
 // Initialize Telegram BOT
-#define BOTtoken "5377698937:AAF8Yml90Xt0PdiXlZauRxDYAiyhp_FR0iA"  // your Bot Token (Get from Botfather)
+#define BOTtoken "YOURTOKEN"  // your Bot Token (Get from Botfather)
 
 WiFiClientSecure client;
 UniversalTelegramBot bot(BOTtoken, client);
